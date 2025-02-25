@@ -1,40 +1,31 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
-# SPDX-License-Identifier: Apache-2.0
-
 import cocotb
+from cocotb.triggers import Timer
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
-
 @cocotb.test()
-async def test_project(dut):
-    dut._log.info("Start")
+async def test_priority_encoder(dut):
+    """ Test the priority encoder """
 
-    # Set the clock period to 10 us (100 KHz)
+    # 生成时钟
     clock = Clock(dut.clk, 10, units="us")
     cocotb.start_soon(clock.start())
 
-    # Reset
-    dut._log.info("Reset")
-    dut.ena.value = 1
-    dut.ui_in.value = 0
-    dut.uio_in.value = 0
+    # 复位电路
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
-
-    dut._log.info("Test project behavior")
-
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
-
-    # Wait for one clock cycle to see the output values
     await ClockCycles(dut.clk, 1)
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+    # 测试用例
+    test_vectors = [
+        (0b10101111, 7),  # 最高位是 7
+        (0b00001000, 3),  # 最高位是 3
+        (0b00000001, 0),  # 最高位是 0
+        (0b00000000, 240) # 无 '1'，返回 1111 0000
+    ]
 
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+    for in_val, expected_out in test_vectors:
+        dut.ui_in.value = in_val
+        await ClockCycles(dut.clk, 1)
+        assert dut.uo_out.value == expected_out, f"Error: Input {bin(in_val)}, Expected {expected_out}, Got {dut.uo_out.value}"
